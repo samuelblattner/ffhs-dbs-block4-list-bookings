@@ -1,10 +1,10 @@
 package application.interfaces;
 
+import application.enums.DatabaseState;
+
 /**
- * Created by samuelblattner on 23.05.17.
+ * Interface for database observers
  */
 public interface DatabaseListener {
-
-    void databaseConnectionSuccessful();
-    void databaseConnectionFailed();
+    void databaseStateChanged(DatabaseState state);
 }
