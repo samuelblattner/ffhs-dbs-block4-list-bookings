@@ -3,6 +3,7 @@ package application;
 import application.enums.DatabaseState;
 import application.interfaces.DatabaseListener;
 import application.models.Booking;
+import application.models.RoomType;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -81,32 +82,11 @@ public class Database {
             preparedStatements.put("get-timeframe-from-bookings", connection.prepareStatement(baseStatement + "AND checkin >= ?"));
             preparedStatements.put("get-timeframe-to-bookings", connection.prepareStatement(baseStatement + "AND checkout <= ?"));
             preparedStatements.put("get-timeframe-both-bookings", connection.prepareStatement(baseStatement + "AND checkin >= ? AND checkout <= ?"));
+            preparedStatements.put("get-roomtypes", connection.prepareStatement("SELECT * FROM room_type"));
 
         } catch (SQLException e) {
             System.out.println(e.getStackTrace());
         }
-    }
-
-    /**
-     * Utility Method to map a list of SQL-Results to Booking objects.
-     *
-     * @param list, SQL-Result
-     * @return ArrayList<Booking>
-     * @throws SQLException
-     */
-    private ArrayList<Booking> mapDBToBooking(ResultSet list) throws SQLException {
-        ArrayList<Booking> results = new ArrayList<>();
-        while (list.next()) {
-            results.add(new Booking(
-                    list.getInt("id"),
-                    list.getDate("checkin"),
-                    list.getDate("checkout"),
-                    list.getBoolean("cancelled_at"),
-                    list.getString("surname"),
-                    list.getString("forename")
-            ));
-        }
-        return results;
     }
 
     /**
@@ -187,7 +167,7 @@ public class Database {
     ArrayList<Booking> getBookingsList() {
         PreparedStatement prep = preparedStatements.get("get-all-bookings");
         try {
-            return mapDBToBooking(prep.executeQuery());
+            return Booking.mapListFromDatabase(prep.executeQuery());
         } catch (SQLException e) {
             return null;
         }
@@ -220,10 +200,20 @@ public class Database {
                     prep.setString(1, fromDate.toString());
                 }
 
-                return mapDBToBooking(prep.executeQuery());
+                return Booking.mapListFromDatabase(prep.executeQuery());
             } catch (SQLException e) {
                 return null;
             }
         }
     }
+
+    ArrayList<RoomType> getRoomTypes() {
+        PreparedStatement prep = preparedStatements.get("get-roomtypes");
+        try {
+            return RoomType.mapListFromDatabase(prep.executeQuery());
+        } catch (SQLException e) {
+            return null;
+        }
+    }
+
 }

@@ -4,18 +4,21 @@ import application.enums.DatabaseState;
 import application.interfaces.ControllerListener;
 import application.interfaces.DatabaseListener;
 import application.models.Booking;
+import application.models.RoomType;
 import javafx.application.Application;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableArray;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableView;
+import javafx.scene.control.*;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
+
+import java.net.URL;
 import java.time.LocalDate;
 
 
@@ -24,7 +27,7 @@ import java.time.LocalDate;
  */
 public class Main extends Application implements DatabaseListener, ControllerListener {
 
-    private static final int PREF_WIDTH = 600, PREF_HEIGHT = 400;
+    private static final int PREF_WIDTH = 1200, PREF_HEIGHT = 600;
     private static final String
             WINDOW_TITLE = "List bookings",
             DATABASE_CONNECTING = "Connecting...",
@@ -37,8 +40,12 @@ public class Main extends Application implements DatabaseListener, ControllerLis
     private Stage primaryStage;
     private Database database;
 
+    // FX Stuff
+
+
     private BookingTableController bookingTableController;
     private ObservableList<Booking> bookingList = FXCollections.observableArrayList();
+    private ObservableList<RoomType> roomTypes = FXCollections.observableArrayList();
 
     /**
      * Initializer
@@ -48,18 +55,10 @@ public class Main extends Application implements DatabaseListener, ControllerLis
     @Override
     public void start(Stage primaryStage) throws Exception{
 
-        FXMLLoader loader = new FXMLLoader();
-        loader.setLocation(Main.class.getResource("mainWindow.fxml"));
-        Parent root = loader.load();
-
-        primaryStage.setTitle(WINDOW_TITLE);
-        primaryStage.setScene(new Scene(root, PREF_WIDTH, PREF_HEIGHT));
-        primaryStage.show();
         this.primaryStage = primaryStage;
 
         setUpGUI();
         setUpDatabase();
-        ((Controller) loader.getController()).setApplication(this);
     }
 
     /**
@@ -67,9 +66,17 @@ public class Main extends Application implements DatabaseListener, ControllerLis
      * @throws Exception
      */
     private void setUpGUI() throws Exception {
-        GridPane mainPane = (GridPane) primaryStage.getScene().lookup("#mainPane");
-        mainPane.setPrefWidth(PREF_WIDTH);
-        mainPane.setPrefHeight(PREF_HEIGHT);
+
+        FXMLLoader loader = new FXMLLoader();
+        URL mainWindowURL = getClass().getResource("scenes/mainWindow.fxml");
+
+        loader.setLocation(mainWindowURL);
+        BorderPane mainWindow = loader.load();
+        ((Controller) loader.getController()).setApplication(this);
+
+        primaryStage.setTitle(WINDOW_TITLE);
+        primaryStage.setScene(new Scene(mainWindow, PREF_WIDTH, PREF_HEIGHT));
+        primaryStage.show();
 
         bookingTableController = new BookingTableController((TableView<Booking>) primaryStage.getScene().lookup("#tblMainTable"));
 
@@ -97,6 +104,23 @@ public class Main extends Application implements DatabaseListener, ControllerLis
         bookingTableController.setEnabled(enabled);
     }
 
+    private void populateRoomTypeDropDown() {
+        ComboBox<RoomType> roomTypeDropDown = (ComboBox<RoomType>) primaryStage.getScene().lookup("#ddRoomType");
+
+        roomTypes.addAll(database.getRoomTypes());
+        roomTypeDropDown.setItems(roomTypes);
+        roomTypeDropDown.setCellFactory((ListView<RoomType> listView) ->
+            new ListCell<RoomType>() {
+                @Override
+                public void updateItem(RoomType item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (!empty) {
+                        setText(item.name.getValue());
+                    }
+                }
+            });
+    }
+
     /**
      * Main entry point
      * @param args
@@ -112,6 +136,7 @@ public class Main extends Application implements DatabaseListener, ControllerLis
     public void stop() {
         database.disconnect();
     }
+
 
 
     /* -----------------------
@@ -144,6 +169,7 @@ public class Main extends Application implements DatabaseListener, ControllerLis
                 setInterfaceEnabled(true);
                 btConnect.setDisable(false);
                 btConnect.setText(BT_CONNECT_DISCONNECT);
+                populateRoomTypeDropDown();
                 break;
             default:
                 lbDatabaseState.setText(DATABASE_DISCONNECTED);
