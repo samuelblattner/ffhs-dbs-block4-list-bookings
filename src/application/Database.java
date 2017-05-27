@@ -3,6 +3,8 @@ package application;
 import application.enums.DatabaseState;
 import application.interfaces.DatabaseListener;
 import application.models.Booking;
+import application.models.Inquiry;
+import application.models.Room;
 import application.models.RoomType;
 
 import java.sql.*;
@@ -71,17 +73,46 @@ public class Database {
      */
     private void prepareStatements() {
 
-        String baseStatement = "" +
+        final String baseStatementBookings = "" +
                 "SELECT b.id, b.checkin, b.checkout, b.cancelled_at, p.surname, p.forename " +
                 "FROM booking b INNER JOIN booking_person bp ON b.id = bp.booking_id INNER JOIN " +
                 "person p ON bp.person_id = p.id WHERE bp.isResponsible = TRUE ";
 
+        final String baseStatementRooms = "" +
+                "SELECT id, name, description, room_type_id " +
+                "FROM room avail_rooms " +
+                "WHERE avail_rooms.id NOT IN (" +
+                    "SELECT used_rooms.id " +
+                    "FROM room used_rooms " +
+                        "INNER JOIN booking_room ON used_rooms.id = booking_room.room_id " +
+                        "INNER JOIN booking b ON booking_room.booking_id = b.id " +
+                        "WHERE b.cancelled_at IS NULL "+
+                        "AND b.checkin >= ? AND b.checkin <= ? " +
+                        "OR b.checkout >= ? AND b.checkout <= ? " +
+                ") " +
+                "AND avail_rooms.id NOT IN (" +
+                        "SELECT inquired_rooms.id " +
+                        "FROM room inquired_rooms " +
+                        "INNER JOIN inquiry_room ON inquired_rooms.id = inquiry_room.room_id " +
+                        "INNER JOIN inquiry i ON inquired_rooms.id = i.id " +
+                        "WHERE i.cancelled_at IS NULL " +
+                        "AND i.from >= ? AND i.from <= ? " +
+                        "OR i.to >= ? AND i.to <= ? " +
+                ") ";
+
+        final String baseStatementInquiry = "" +
+                "SELECT * FROM inquiry";
+
         preparedStatements = new HashMap<>();
         try {
-            preparedStatements.put("get-all-bookings", connection.prepareStatement(baseStatement));
-            preparedStatements.put("get-timeframe-from-bookings", connection.prepareStatement(baseStatement + "AND checkin >= ?"));
-            preparedStatements.put("get-timeframe-to-bookings", connection.prepareStatement(baseStatement + "AND checkout <= ?"));
-            preparedStatements.put("get-timeframe-both-bookings", connection.prepareStatement(baseStatement + "AND checkin >= ? AND checkout <= ?"));
+            preparedStatements.put("get-all-bookings", connection.prepareStatement(baseStatementBookings));
+            preparedStatements.put("get-timeframe-from-bookings", connection.prepareStatement(baseStatementBookings + "AND checkin >= ?"));
+            preparedStatements.put("get-timeframe-to-bookings", connection.prepareStatement(baseStatementBookings + "AND checkout <= ?"));
+            preparedStatements.put("get-timeframe-both-bookings", connection.prepareStatement(baseStatementBookings + "AND checkin >= ? AND checkout <= ?"));
+            preparedStatements.put("get-available-rooms-by-type", connection.prepareStatement(baseStatementRooms + "AND avail_rooms.room_type_id = ?"));
+            preparedStatements.put("get-available-rooms-any", connection.prepareStatement(baseStatementRooms));
+            preparedStatements.put("get-inquiries", connection.prepareStatement(baseStatementInquiry));
+
             preparedStatements.put("get-roomtypes", connection.prepareStatement("SELECT * FROM room_type"));
 
         } catch (SQLException e) {
@@ -216,4 +247,47 @@ public class Database {
         }
     }
 
+    ArrayList<Room> getAvailableRooms(LocalDate fromDate, LocalDate toDate, RoomType roomType) {
+        PreparedStatement prep;
+
+        if (fromDate != null && toDate != null && roomType != null) {
+
+            try {
+                if (roomType.id.getValue() != 0) {
+                    prep = preparedStatements.get("get-available-rooms-by-type");
+                    prep.setInt(9, roomType.id.getValue());
+                } else {
+                    prep = preparedStatements.get("get-available-rooms-any");
+                }
+
+                prep.setString(1, fromDate.toString());
+                prep.setString(2, fromDate.toString());
+                prep.setString(3, toDate.toString());
+                prep.setString(4, toDate.toString());
+                prep.setString(5, fromDate.toString());
+                prep.setString(6, fromDate.toString());
+                prep.setString(7, toDate.toString());
+                prep.setString(8, toDate.toString());
+
+                return Room.mapListFromDatabase(prep.executeQuery());
+            } catch (SQLException e) {
+                System.out.println(e);
+                return new ArrayList<Room>();
+            }
+        }
+
+        return new ArrayList<Room>();
+    }
+
+    ArrayList<Inquiry> getInquiries() {
+        PreparedStatement prep = preparedStatements.get("get-inquiries");
+        try {
+            ArrayList<Inquiry> l = Inquiry.mapListFromDatabase(prep.executeQuery());
+            System.out.println(l);
+            return Inquiry.mapListFromDatabase(prep.executeQuery());
+        } catch (SQLException e) {
+            System.out.println(e);
+            return new ArrayList<Inquiry>();
+        }
+    }
 }
