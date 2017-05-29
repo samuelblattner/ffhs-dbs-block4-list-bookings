@@ -42,10 +42,10 @@ public class Booking {
 
     public Booking(int id, Date checkin, Date checkout, boolean cancelled_at, String surname, String forename) {
         this.id = new SimpleIntegerProperty(id);
-        this.checkin = new SimpleStringProperty(checkin.toString());
-        this.checkout = new SimpleStringProperty(checkout.toString());
+        this.checkin = checkin != null ? new SimpleStringProperty(checkin.toString()) : null;
+        this.checkout = checkout != null ? new SimpleStringProperty(checkout.toString()) : null;
         this.cancelled_at = new SimpleBooleanProperty(cancelled_at);
-        this.surname = new SimpleStringProperty(surname);
-        this.forename = new SimpleStringProperty(forename);
+        this.surname = new SimpleStringProperty(surname != null ? surname : "");
+        this.forename = new SimpleStringProperty(forename != null ? forename : "");
     }
 }
